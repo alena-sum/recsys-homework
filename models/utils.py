@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / 'data' / 'raw'
 BASE = 'https://mcauleylab.ucsd.edu/public_datasets/data/amazon_v2/'
 SOURCES = {
@@ -25,8 +25,10 @@ MAX_USERS = 40000
 
 def download():
     DATA.mkdir(parents=True, exist_ok=True)
-    expected_path = ROOT / 'results' / 'sources.json'
-    expected = json.loads(expected_path.read_text()) if expected_path.exists() else {}
+    expected = {
+        'Video_Games.csv': 'c3fec1cce4ee67f0d51f8b53a7e294d8bbe6f75ca1d8732256e900b3c46606d8',
+        'meta_Video_Games.json.gz': '4069e17c7efa33e7574c2e77f1fe0b0c6f2a42a7ac29c4422696d788d8a8e0a6',
+    }
     manifest = {}
     for name, url in SOURCES.items():
         target = DATA / name
@@ -36,7 +38,7 @@ def download():
                             '--max-time', '600', url, '-o', str(part)], check=True)
             part.replace(target)
         digest = hashlib.sha256(target.read_bytes()).hexdigest()
-        if name in expected and digest != expected[name]['sha256']:
+        if name in expected and digest != expected[name]:
             raise ValueError(f'Checksum mismatch for {name}; remove the incomplete local file and retry')
         manifest[name] = dict(url=url, bytes=target.stat().st_size, sha256=digest)
     return manifest
@@ -182,7 +184,7 @@ def recommend(model, users, context, k=10):
 
 
 def evaluate(model, context, k=10, batch_size=128):
-    per_user, recommended = [], set()
+    per_user = []
     for start in range(0, len(context['users']), batch_size):
         users = context['users'][start:start + batch_size]
         top = recommend(model, users, context, k)
@@ -191,9 +193,7 @@ def evaluate(model, context, k=10, batch_size=128):
             hit = np.isin(recs, truth)
             dcg = float(np.sum(hit / np.log2(np.arange(2, k + 2))))
             idcg = float(np.sum(1 / np.log2(np.arange(2, min(k, len(truth)) + 2))))
-            per_user.append((int(u), dcg / idcg, hit.sum() / len(truth), hit.sum() / k))
-            recommended.update(recs)
-    rows = pd.DataFrame(per_user, columns=['user_idx', 'NDCG@10', 'Recall@10', 'Precision@10'])
+            per_user.append((int(u), dcg / idcg, hit.sum() / len(truth)))
+    rows = pd.DataFrame(per_user, columns=['user_idx', 'NDCG@10', 'Recall@10'])
     metrics = rows.drop(columns='user_idx').mean().to_dict()
-    metrics['Coverage@10'] = len(recommended) / context['warm_items'].sum()
     return metrics, rows

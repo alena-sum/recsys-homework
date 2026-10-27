@@ -6,20 +6,20 @@ repeated feature gradients with np.add.at and updates its accumulators here.
 """
 import numpy as np
 from scipy.special import expit
+from scipy.linalg.blas import dgemm
 
 
 class FM:
     def __init__(self, factors=16, lr=.04, reg=.001, epochs=10,
-                 batch_size=2048, seed=42, metadata=True):
+                 batch_size=2048, seed=42):
         self.factors, self.lr, self.reg = factors, lr, reg
         self.epochs, self.batch_size = epochs, batch_size
-        self.seed, self.metadata = seed, metadata
+        self.seed = seed
 
     def fit(self, history, events, item_features, **kwargs):
         self.n_users, self.n_items = history.shape
         ids = np.arange(self.n_items)[:, None]
-        self.item_features = ids if not self.metadata else np.column_stack(
-            [ids, item_features])
+        self.item_features = np.column_stack([ids, item_features])
         self.item_features = self.item_features + self.n_users
         n_features = int(self.item_features.max()) + 1
         rng = np.random.default_rng(self.seed)
@@ -91,4 +91,4 @@ class FM:
 
     def score(self, users):
         users = np.asarray(users)
-        return self.v[users] @ self.item_sum.T + self.item_bias[None, :] + self.w[users, None]
+        return dgemm(1., self.v[users], self.item_sum, trans_b=True) + self.item_bias[None, :] + self.w[users, None]

@@ -6,6 +6,7 @@ including non-positive reviews. Baseline p=1[rating >= 4].
 import numpy as np
 from scipy import sparse
 from scipy.linalg import solve
+from scipy.linalg.blas import dgemm, dgemv
 
 
 class IALS:
@@ -35,17 +36,17 @@ class IALS:
         return self
 
     def _step(self, fixed, observed, targets):
-        base = fixed.T @ fixed + self.reg * np.eye(self.factors)
+        base = dgemm(1., fixed, fixed, trans_a=True) + self.reg * np.eye(self.factors)
         out = np.zeros((observed.shape[0], self.factors))
         for u in range(observed.shape[0]):
             a, b = observed.indptr[u:u + 2]
             if a == b:
                 continue
             y = fixed[observed.indices[a:b]]
-            lhs = base + self.alpha * (y.T @ y)
-            rhs = (1 + self.alpha) * (y.T @ targets.data[a:b])
+            lhs = base + self.alpha * dgemm(1., y, y, trans_a=True)
+            rhs = (1 + self.alpha) * dgemv(1., y, targets.data[a:b], trans=True)
             out[u] = solve(lhs, rhs, assume_a='pos', check_finite=False)
         return out
 
     def score(self, users):
-        return self.user_factors[users] @ self.item_factors.T
+        return dgemm(1., self.user_factors[users], self.item_factors, trans_b=True)
