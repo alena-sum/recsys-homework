@@ -1,4 +1,3 @@
-"""Подготовка данных и общий подсчёт метрик для рекомендаций top-10."""
 from pathlib import Path
 import gzip
 import hashlib
@@ -56,7 +55,6 @@ def prepare():
     clean = clean[(clean.rating.between(1, 5)) & (clean.timestamp > 0)]
     clean = clean.sort_values(['timestamp', 'user_id', 'item_id'], kind='stable')
     report['repeated_user_item_rows'] = int(clean.duplicated(['user_id', 'item_id']).sum())
-    # Оставляем первый отзыв, чтобы поздняя оценка не заменила раннюю.
     clean = clean.drop_duplicates(['user_id', 'item_id'], keep='first')
     t0, t1 = np.quantile(clean.timestamp, [.70, .85]).astype(np.int64)
     early = clean[clean.timestamp < t0]
@@ -66,11 +64,9 @@ def prepare():
     early = selected[(selected.timestamp < t0) & (selected.rating >= 4)]
     counts = early.groupby('user_id').size()
     users = sorted(counts[counts >= 2].index)
-    # Отбираем пользователей по фиксированному хешу.
     users = sorted(sorted(users, key=lambda u: hashlib.sha256(
         f'{SEED}:{u}'.encode()).hexdigest())[:MAX_USERS])
     selected = selected[selected.user_id.isin(users)].copy()
-    # Оставляем товары, которые встретились в обучающей части.
     items = sorted(selected.loc[selected.timestamp < t0, 'item_id'].unique())
     selected = selected[selected.item_id.isin(items)]
     umap, imap = {u:i for i,u in enumerate(users)}, {v:i for i,v in enumerate(items)}
@@ -120,7 +116,6 @@ def normalize(value):
 
 
 def encode_metadata(meta):
-    # Строим словари по названиям и брендам товаров из обучающей части.
     n = len(meta)
     brands = meta.brand.map(normalize)
     counts = brands.value_counts()
@@ -133,7 +128,6 @@ def encode_metadata(meta):
     vocab = sorted((t for t,c in freq.items() if c >= 5 and t not in stop),
                    key=lambda t:(-freq[t], t))[:2048]
     tmap = {s:i + 1 for i,s in enumerate(vocab)}
-    # Выбираем самое редкое подходящее слово; при равенстве — по алфавиту.
     keyword = [min((t for t in words if t in tmap), key=lambda t:(freq[t], t),
                    default='') for words in tokens]
     brand = np.array([n + bmap.get(s, 0) for s in brands])
@@ -177,7 +171,6 @@ def recommend(model, users, context, k=10):
     past = context['seen'][users].tocoo()
     scores[past.row, past.col] = -np.inf
     assert (np.isfinite(scores).sum(axis=1) >= k).all()
-    # При равных оценках сохраняем порядок ASIN.
     return np.argsort(-scores, axis=1, kind='stable')[:, :k]
 
 

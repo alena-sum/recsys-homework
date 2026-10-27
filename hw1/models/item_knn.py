@@ -1,4 +1,3 @@
-"""Соседи товаров: косинусное сходство с поправкой на число общих пользователей."""
 import numpy as np
 from scipy import sparse
 
@@ -14,7 +13,6 @@ class ItemKNN:
         sim = gram / np.maximum(norm[:, None] * norm[None, :], 1e-12)
         sim *= gram / (gram + self.shrink + 1e-12)
         np.fill_diagonal(sim, 0)
-        # Для каждого товара оставляем k ближайших соседей.
         k = min(self.k, len(sim) - 1)
         ids = np.argpartition(-sim, k - 1, axis=1)[:, :k]
         rows = np.repeat(np.arange(len(sim)), k)

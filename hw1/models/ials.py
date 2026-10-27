@@ -1,7 +1,3 @@
-"""iALS с поочерёдным решением линейных систем.
-
-У неизвестных пар цель 0 и вес 1. У известных отзывов вес 1 + alpha,
-а цель равна 1 для оценок от четырёх звёзд и 0 для остальных."""
 import numpy as np
 from scipy import sparse
 from scipy.linalg import solve
@@ -23,7 +19,6 @@ class IALS:
             (events.user_idx, events.item_idx)), shape=history.shape)
         p = sparse.csr_matrix((targets,
             (events.user_idx, events.item_idx)), shape=history.shape)
-        # Сохраняем нулевые цели, чтобы индексы совпадали с observed.
         assert np.array_equal(observed.indices, p.indices)
         rng = np.random.default_rng(self.seed)
         self.user_factors = rng.normal(0, .05, (n_users, self.factors))

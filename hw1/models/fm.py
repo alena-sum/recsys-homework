@@ -1,7 +1,3 @@
-"""Факторизационная машина с обучением по BPR.
-
-Признаки бинарные. Градиенты и шаги Adagrad считаются вручную;
-градиенты повторяющихся признаков складываются через np.add.at."""
 import numpy as np
 from scipy.special import expit
 from scipy.linalg.blas import dgemm
@@ -53,14 +49,12 @@ class FM:
                 delta = sp - sn
                 epoch_loss += np.logaddexp(0, -delta).sum()
                 g = -expit(-delta) / len(idx)
-                # Сначала считаем оба градиента, затем меняем веса.
                 gvp = g[:, None, None] * (sump[:, None, :] - vp)
                 gvn = -g[:, None, None] * (sumn[:, None, :] - vn)
                 gvp += self.reg * vp / len(idx)
                 gvn += self.reg * vn / len(idx)
                 gwp = np.broadcast_to(g[:, None], xp.shape) + self.reg * self.w[xp] / len(idx)
                 gwn = np.broadcast_to(-g[:, None], xn.shape) + self.reg * self.w[xn] / len(idx)
-                # Складываем градиенты повторяющихся признаков и делаем шаг Adagrad.
                 all_ids = np.r_[xp.ravel(), xn.ravel()]
                 touched, inverse = np.unique(all_ids, return_inverse=True)
                 gv = np.zeros((len(touched), self.factors))
