@@ -1,4 +1,4 @@
-"""Closed-form EASE, including the zero-diagonal constraint."""
+"""EASE с нулевой диагональю матрицы весов."""
 import numpy as np
 from scipy.linalg import cho_factor, cho_solve
 

@@ -1,8 +1,7 @@
-"""Weighted ALS implemented directly using normal equations.
+"""iALS с поочерёдным решением линейных систем.
 
-Unobserved pairs have p=0,c=1. EVERY observed review has c=1+alpha,
-including non-positive reviews. Baseline p=1[rating >= 4].
-"""
+У неизвестных пар цель 0 и вес 1. У известных отзывов вес 1 + alpha,
+а цель равна 1 для оценок от четырёх звёзд и 0 для остальных."""
 import numpy as np
 from scipy import sparse
 from scipy.linalg import solve
@@ -24,7 +23,7 @@ class IALS:
             (events.user_idx, events.item_idx)), shape=history.shape)
         p = sparse.csr_matrix((targets,
             (events.user_idx, events.item_idx)), shape=history.shape)
-        # Keep explicit zero targets: observed and p share a sorted CSR pattern.
+        # Сохраняем нулевые цели, чтобы индексы совпадали с observed.
         assert np.array_equal(observed.indices, p.indices)
         rng = np.random.default_rng(self.seed)
         self.user_factors = rng.normal(0, .05, (n_users, self.factors))

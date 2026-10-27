@@ -1,9 +1,7 @@
-"""Second-order FM trained with a manually differentiated BPR objective.
+"""Факторизационная машина с обучением по BPR.
 
-No recommender, optimizer, or trainable algorithm library is used.
-Feature vectors are sparse binary multi-hot vectors. Mini-batch Adagrad sums
-repeated feature gradients with np.add.at and updates its accumulators here.
-"""
+Признаки бинарные. Градиенты и шаги Adagrad считаются вручную;
+градиенты повторяющихся признаков складываются через np.add.at."""
 import numpy as np
 from scipy.special import expit
 from scipy.linalg.blas import dgemm
@@ -55,14 +53,14 @@ class FM:
                 delta = sp - sn
                 epoch_loss += np.logaddexp(0, -delta).sum()
                 g = -expit(-delta) / len(idx)
-                # Compute both gradients BEFORE mutating weights.
+                # Сначала считаем оба градиента, затем меняем веса.
                 gvp = g[:, None, None] * (sump[:, None, :] - vp)
                 gvn = -g[:, None, None] * (sumn[:, None, :] - vn)
                 gvp += self.reg * vp / len(idx)
                 gvn += self.reg * vn / len(idx)
                 gwp = np.broadcast_to(g[:, None], xp.shape) + self.reg * self.w[xp] / len(idx)
                 gwn = np.broadcast_to(-g[:, None], xn.shape) + self.reg * self.w[xn] / len(idx)
-                # Sparse Adagrad, implemented here rather than a library optimizer.
+                # Складываем градиенты повторяющихся признаков и делаем шаг Adagrad.
                 all_ids = np.r_[xp.ravel(), xn.ravel()]
                 touched, inverse = np.unique(all_ids, return_inverse=True)
                 gv = np.zeros((len(touched), self.factors))

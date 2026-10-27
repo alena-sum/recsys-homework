@@ -1,4 +1,4 @@
-"""Signed, rating-aware, recency-adjusted preference; unchanged confidence."""
+"""iALS с таргетом из оценки и давности отзыва. Веса остаются прежними."""
 import numpy as np
 from .ials import IALS
 
@@ -11,5 +11,5 @@ class CustomIALS(IALS):
     def targets(self, events, cutoff):
         age = np.maximum(0, cutoff - events.timestamp.to_numpy()) / 86400
         recency = self.floor + (1 - self.floor) * np.exp(-age / self.tau_days)
-        # 1 star -> -1, 3 stars -> 0, 5 stars -> +1 before recency.
+        # До поправки на давность: 1 звезда даёт -1, 3 — ноль, 5 — единицу.
         return ((events.rating.to_numpy() - 3) / 2) * recency
